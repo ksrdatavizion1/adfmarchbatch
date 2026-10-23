@@ -1,0 +1,15 @@
+{
+	"name": "adfksrmarch",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "2276bbf0-1d2d-4688-bd80-d2bacdfec153",
+		"tenantId": "b0d9e8e1-ec2e-4ccf-9ded-96d9596141de"
+	}
+}
