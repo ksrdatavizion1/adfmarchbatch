@@ -16,15 +16,24 @@
 				"userProperties": [],
 				"typeProperties": {
 					"source": {
-						"type": "MySqlSource"
+						"type": "MySqlSource",
+						"query": "Select * from sales_orders"
 					},
 					"sink": {
 						"type": "SnowflakeV2Sink",
 						"importSettings": {
-							"type": "SnowflakeImportCopyCommand"
+							"type": "SnowflakeImportCopyCommand",
+							"storageIntegration": "STORAGE_S3_INTEGRATION"
 						}
 					},
-					"enableStaging": false,
+					"enableStaging": true,
+					"stagingSettings": {
+						"linkedServiceName": {
+							"referenceName": "ls_blob",
+							"type": "LinkedServiceReference"
+						},
+						"path": "snowflake"
+					},
 					"translator": {
 						"type": "TabularTranslator",
 						"typeConversion": true,

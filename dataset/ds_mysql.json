@@ -7,9 +7,6 @@
 		},
 		"annotations": [],
 		"type": "MySqlTable",
-		"schema": [],
-		"typeProperties": {
-			"tableName": "`sales_orders`"
-		}
+		"schema": []
 	}
 }
