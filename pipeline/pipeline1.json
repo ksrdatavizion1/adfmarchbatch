@@ -66,8 +66,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"source": {
-									"type": "MySqlSource",
-									"query": "Select * from sales_orders"
+									"type": "MySqlSource"
 								},
 								"sink": {
 									"type": "SnowflakeV2Sink",
