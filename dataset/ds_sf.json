@@ -10,7 +10,7 @@
 		"schema": [],
 		"typeProperties": {
 			"schema": "PUBLIC",
-			"table": "SALSES_SF"
+			"table": "SF_SALES_ORDERS"
 		}
 	}
 }
