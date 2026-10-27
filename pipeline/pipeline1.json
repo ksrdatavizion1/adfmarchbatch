@@ -51,6 +51,7 @@
 						"value": "@activity('get table info').output.value",
 						"type": "Expression"
 					},
+					"batchCount": 5,
 					"activities": [
 						{
 							"name": "copy_mysql_sf",
@@ -70,6 +71,10 @@
 								},
 								"sink": {
 									"type": "SnowflakeV2Sink",
+									"preCopyScript": {
+										"value": "@concat('TRUNCATE TABLE PUBLIC.', item().TARGET_TABLE)",
+										"type": "Expression"
+									},
 									"importSettings": {
 										"type": "SnowflakeImportCopyCommand"
 									}
