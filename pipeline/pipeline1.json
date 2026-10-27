@@ -22,8 +22,7 @@
 					"sink": {
 						"type": "SnowflakeV2Sink",
 						"importSettings": {
-							"type": "SnowflakeImportCopyCommand",
-							"storageIntegration": "STORAGE_S3_INTEGRATION"
+							"type": "SnowflakeImportCopyCommand"
 						}
 					},
 					"enableStaging": true,
