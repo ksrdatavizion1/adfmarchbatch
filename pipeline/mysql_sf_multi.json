@@ -174,7 +174,7 @@
 								"source": {
 									"type": "MySqlSource",
 									"query": {
-										"value": "Select * from '@{item().table_name}' where last_modified > '@{variables('max_date')}'",
+										"value": "Select * from @{item().table_name} where last_modified > '@{variables('max_date')}'",
 										"type": "Expression"
 									}
 								},
@@ -277,7 +277,7 @@
 												{
 													"type": "Query",
 													"text": {
-														"value": "UPDATE watermark_control\nSET last_loaded_timestamp = (\n    SELECT MAX(last_modified)\n    FROM IDENTIFIER('@{item().table_name}')\n)\nWHERE table_name = '@{item().table_name}';\n",
+														"value": "UPDATE watermark_control\nSET last_loaded_timestamp = (\n    SELECT MAX(last_modified)\n    FROM IDENTIFIER('@{item().table_name}_SNOWFLAKE')\n)\nWHERE table_name = '@{item().table_name}';\n",
 														"type": "Expression"
 													}
 												}
