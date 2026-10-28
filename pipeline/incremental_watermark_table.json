@@ -183,6 +183,21 @@
 						"value": "@greater(activity('Copy data').output.rowsCopied, 0)",
 						"type": "Expression"
 					},
+					"ifFalseActivities": [
+						{
+							"name": "Fail1",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "404",
+								"errorCode": {
+									"value": "No need data for today pls check",
+									"type": "Expression"
+								}
+							}
+						}
+					],
 					"ifTrueActivities": [
 						{
 							"name": "update watermark date",
