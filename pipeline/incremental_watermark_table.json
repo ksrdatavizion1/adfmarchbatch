@@ -1,0 +1,114 @@
+{
+	"name": "incremental_watermark_table",
+	"properties": {
+		"activities": [
+			{
+				"name": "set Watermark",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_snowflake",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": {
+								"value": "INSERT INTO watermark_control (table_name, last_loaded_timestamp)\nSelect '@{pipeline().parameters.p_table_name}',  '1900-01-01 00:00:00'\nwhere not EXISTS (\n    Select 1 from watermark_control where table_name = '@{pipeline().parameters.p_table_name}'\n);",
+								"type": "Expression"
+							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00",
+					"treatDecimalAsString": false
+				}
+			},
+			{
+				"name": "read_max_watermark_date",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "set Watermark",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SnowflakeV2Source",
+						"query": {
+							"value": "SELECT max(last_loaded_timestamp)\nFROM watermark_control\nWHERE table_name = '@{pipeline().parameters.p_table_name}';\n",
+							"type": "Expression"
+						},
+						"exportSettings": {
+							"type": "SnowflakeExportCopyCommand"
+						},
+						"treatDecimalAsString": false
+					},
+					"dataset": {
+						"referenceName": "ds_sf",
+						"type": "DatasetReference",
+						"parameters": {
+							"table": "watermark_control",
+							"schema": "PUBLIC"
+						}
+					}
+				}
+			},
+			{
+				"name": "set max date",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "read_max_watermark_date",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "max_date",
+					"value": {
+						"value": "@activity('read_max_watermark_date').output.firstRow.last_loaded_timestamp",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"p_table_name": {
+				"type": "string",
+				"defaultValue": "SALES_ORDERS_SNOWFLAKE"
+			}
+		},
+		"variables": {
+			"max_date": {
+				"type": "String"
+			}
+		},
+		"annotations": []
+	}
+}
