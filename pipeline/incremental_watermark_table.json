@@ -55,7 +55,7 @@
 					"source": {
 						"type": "SnowflakeV2Source",
 						"query": {
-							"value": "SELECT max(last_loaded_timestamp)\nFROM watermark_control\nWHERE table_name = '@{pipeline().parameters.p_table_name}';\n",
+							"value": "SELECT max(last_loaded_timestamp) as last_loaded_timestamp\nFROM watermark_control\nWHERE table_name = '@{pipeline().parameters.p_table_name}';\n",
 							"type": "Expression"
 						},
 						"exportSettings": {
@@ -96,6 +96,75 @@
 						"type": "Expression"
 					}
 				}
+			},
+			{
+				"name": "Copy data1",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "set max date",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "MySqlSource",
+						"query": {
+							"value": "Select * from sales_orders where last_modified > '@{variables('max_date')}'",
+							"type": "Expression"
+						}
+					},
+					"sink": {
+						"type": "SnowflakeV2Sink",
+						"importSettings": {
+							"type": "SnowflakeImportCopyCommand"
+						}
+					},
+					"enableStaging": true,
+					"stagingSettings": {
+						"linkedServiceName": {
+							"referenceName": "ls_blob",
+							"type": "LinkedServiceReference"
+						}
+					},
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_mysql",
+						"type": "DatasetReference",
+						"parameters": {
+							"table_name": "xyz"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_sf",
+						"type": "DatasetReference",
+						"parameters": {
+							"table": "SALES_ORDERS_SNOWFLAKE",
+							"schema": "PUBLIC"
+						}
+					}
+				]
 			}
 		],
 		"parameters": {
