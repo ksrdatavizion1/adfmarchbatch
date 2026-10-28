@@ -1,5 +1,5 @@
 {
-	"name": "pipeline1",
+	"name": "full_load_mysql_sf",
 	"properties": {
 		"activities": [
 			{
