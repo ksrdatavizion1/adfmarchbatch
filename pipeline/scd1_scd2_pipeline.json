@@ -1,0 +1,273 @@
+{
+	"name": "scd1_scd2_pipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "lookup_table_list",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SnowflakeV2Source",
+						"query": {
+							"value": "Select table_name, primary_key from PUBLIC.table_metadata;",
+							"type": "Expression"
+						},
+						"exportSettings": {
+							"type": "SnowflakeExportCopyCommand"
+						},
+						"treatDecimalAsString": false
+					},
+					"dataset": {
+						"referenceName": "ds_sf",
+						"type": "DatasetReference",
+						"parameters": {
+							"table": "xz",
+							"schema": "xx"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "ForEach1",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "lookup_table_list",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('lookup_table_list').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "set Watermark",
+							"type": "Script",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "ls_snowflake",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "Query",
+										"text": {
+											"value": "INSERT INTO watermark_control (table_name, last_loaded_timestamp)\nSelect '@{item().table_name}',  '1900-01-01 00:00:00'\nwhere not EXISTS (\n    Select 1 from watermark_control where table_name = '@{item().table_name}'\n);",
+											"type": "Expression"
+										}
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00",
+								"treatDecimalAsString": false
+							}
+						},
+						{
+							"name": "read_max_watermark_date",
+							"type": "Lookup",
+							"dependsOn": [
+								{
+									"activity": "set Watermark",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SnowflakeV2Source",
+									"query": {
+										"value": "SELECT max(last_loaded_timestamp) as last_loaded_timestamp\nFROM watermark_control\nWHERE table_name = '@{item().table_name}';\n",
+										"type": "Expression"
+									},
+									"exportSettings": {
+										"type": "SnowflakeExportCopyCommand"
+									},
+									"treatDecimalAsString": false
+								},
+								"dataset": {
+									"referenceName": "ds_sf",
+									"type": "DatasetReference",
+									"parameters": {
+										"table": "watermark_control",
+										"schema": "PUBLIC"
+									}
+								}
+							}
+						},
+						{
+							"name": "set max date",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "read_max_watermark_date",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "date",
+								"value": {
+									"value": "@activity('read_max_watermark_date').output.firstRow.last_loaded_timestamp",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Copy data",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "set max date",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "MySqlSource",
+									"query": {
+										"value": "Select * from @{item().table_name} where last_modified > '@{variables('date')}'",
+										"type": "Expression"
+									}
+								},
+								"sink": {
+									"type": "SnowflakeV2Sink",
+									"importSettings": {
+										"type": "SnowflakeImportCopyCommand"
+									}
+								},
+								"enableStaging": true,
+								"stagingSettings": {
+									"linkedServiceName": {
+										"referenceName": "ls_blob",
+										"type": "LinkedServiceReference"
+									}
+								},
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_mysql",
+									"type": "DatasetReference",
+									"parameters": {
+										"table_name": "xyz"
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_sf",
+									"type": "DatasetReference",
+									"parameters": {
+										"table": {
+											"value": "@concat(toUpper(item().table_name), '_STAGE')",
+											"type": "Expression"
+										},
+										"schema": "PUBLIC"
+									}
+								}
+							]
+						},
+						{
+							"name": "scd1",
+							"type": "Script",
+							"dependsOn": [
+								{
+									"activity": "Copy data",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "ls_snowflake",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "Query",
+										"text": {
+											"value": "\nDECLARE \n    src_table STRING DEFAULT '@{item().table_name}_stage';\n    tgt_table STRING DEFAULT '@{item().table_name}_snowflake';\n    pk STRING DEFAULT '@{item().primary_key}';\n    col_list STRING;\n    upd_list STRING;\n    merge_sql STRING;\nBEGIN\n    SELECT LISTAGG(column_name, ', ') \n    INTO :col_list\n    FROM INFORMATION_SCHEMA.COLUMNS\n    WHERE table_name = UPPER(:tgt_table);\n\n    SELECT LISTAGG('t.' || column_name || ' = s.' || column_name, ', ')\n    INTO :upd_list\n    FROM INFORMATION_SCHEMA.COLUMNS\n    WHERE table_name = UPPER(:tgt_table)\n    AND column_name <> UPPER(:pk);\n\n    merge_sql := '\n        MERGE INTO ' || tgt_table || ' t\n        USING ' || src_table || ' s\n        ON t.' || pk || ' = s.' || pk || '\n        WHEN MATCHED THEN UPDATE SET ' || upd_list || '\n        WHEN NOT MATCHED THEN INSERT (' || col_list || ')\n        VALUES (' || REPLACE(col_list, ',', ', s.') || ')\n    ';\n\n    EXECUTE IMMEDIATE merge_sql;\nEND;",
+											"type": "Expression"
+										}
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00",
+								"treatDecimalAsString": false
+							}
+						}
+					]
+				}
+			}
+		],
+		"variables": {
+			"date": {
+				"type": "String"
+			}
+		},
+		"annotations": []
+	}
+}
